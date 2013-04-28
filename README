@@ -1,0 +1,55 @@
+This is a simple lua library used for programatically debugging programs in linux. It's primarily used for fuzzing applications.
+
+Not all of the functionality has been tested.
+
+-----------------------------------------------
+
+d = l_debug.execv(string program_name, table program_arguments)
+
+This will launch the program with PTRACE_TRACEME. Additionally, it will automatically set program_name as the first argument, so leave it out of your program_arguments.
+
+d:wait()
+
+Does a call to waitpid(), returns status information
+
+d:termsig()
+d:stopsig()
+
+returns signals and stuff
+
+d:registers()
+
+Returns registers. Check out l_debug_registers if you need to change them to your architecture.
+
+-----------------------------------------------
+
+require("l_debug")
+require("pickle")
+require("lfs")
+
+testcases = {
+    {"/path/to/test/program", {"0123456789abcde"}},
+    {"/path/to/test/program", {"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}},
+}
+
+for i,testcase in pairs(testcases) do
+    local d = l_debug.execv(testcase[1], testcase[2])
+
+    print("[*] pid: " .. d:pid())
+
+    local waitstatus = d:wait()
+
+    if waitstatus ~= "WIFEXITED" then
+        print("[+] irregular program exit", waitstatus)
+        if waitstatus == "WIFSTOPPED" then
+            print("[+] STOPSIG", d:stopsig())
+        end
+
+        local regs = d:registers()
+        for i, name in pairs(regnames) do
+            print("[>] " .. name .. "\t" .. regs[name])
+        end
+    else
+        print("[*] process exited normally")
+    end
+end
