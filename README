@@ -24,8 +24,6 @@ Returns registers. Check out l_debug_registers if you need to change them to you
 -----------------------------------------------
 
 require("l_debug")
-require("pickle")
-require("lfs")
 
 testcases = {
     {"/path/to/test/program", {"0123456789abcde"}},
