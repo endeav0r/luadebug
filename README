@@ -43,9 +43,8 @@ for i,testcase in pairs(testcases) do
             print("[+] STOPSIG", d:stopsig())
         end
 
-        local regs = d:registers()
-        for i, name in pairs(regnames) do
-            print("[>] " .. name .. "\t" .. regs[name])
+        for name, value in pairs(d:registers()) do
+            print("[>] " .. name .. "\t" .. value)
         end
     else
         print("[*] process exited normally")
