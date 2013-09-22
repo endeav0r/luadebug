@@ -1,4 +1,5 @@
 #include "l_debug.h"
+#include "breakpoint.h"
 
 #include <errno.h>
 #include <inttypes.h>
@@ -12,13 +13,15 @@ static const struct luaL_Reg l_debug_f [] = {
 };
 
 static const struct luaL_Reg l_debug_m [] = {
-    {"pid",       l_debug_pid},
-    {"registers", l_debug_registers},
-    {"wait",      l_debug_wait},
-    {"readmem",   l_debug_readmem},
-    {"termsig",   l_debug_termsig},
-    {"stopsig",   l_debug_stopsig},
-    {"status",    l_debug_status},
+    {"pid",        l_debug_pid},
+    {"getpc",      l_debug_getpc},
+    {"registers",  l_debug_registers},
+    {"wait",       l_debug_wait},
+    {"readmem",    l_debug_readmem},
+    {"termsig",    l_debug_termsig},
+    {"stopsig",    l_debug_stopsig},
+    {"status",     l_debug_status},
+    {"breakpoint", l_debug_breakpoint},
     {NULL, NULL}
 };
 
@@ -132,6 +135,24 @@ int l_debug_pid (lua_State * L)
     return 1;
 }
 
+
+int l_debug_getpc (lua_State * L)
+{
+    struct _debug * d = l_check_debug(L, -1);
+    lua_pop(L, 1);
+
+    struct user_regs_struct regs;
+    ptrace(PTRACE_GETREGS, d->pid, NULL, &regs);
+
+    if ((WIFSTOPPED(d->status)) && (WSTOPSIG(d->status) == SIGTRAP))
+        lua_pushnumber(L, regs.eip - 1);
+    else
+        lua_pushnumber(L, regs.eip);
+
+    return 1;
+}
+
+
 int l_debug_registers (lua_State * L)
 {
     struct _debug * d = l_check_debug(L, -1);
@@ -142,42 +163,40 @@ int l_debug_registers (lua_State * L)
 
     lua_newtable(L);
 
-    char tmp[64];
-
 #define PUSHREGTABLE(XX) \
-    snprintf(tmp, 64, "%016llx", regs.XX);\
     lua_pushstring(L, #XX);\
-    lua_pushstring(L, tmp);\
+    lua_pushnumber(L, regs.XX);\
     lua_settable(L, -3);
 
-    PUSHREGTABLE(rax)
-    PUSHREGTABLE(rbx)
-    PUSHREGTABLE(rcx)
-    PUSHREGTABLE(rdx)
-    PUSHREGTABLE(rsi)
-    PUSHREGTABLE(rdi)
-    PUSHREGTABLE(rsp)
-    PUSHREGTABLE(rbp)
-    PUSHREGTABLE(r8)
-    PUSHREGTABLE(r9)
-    PUSHREGTABLE(r10)
-    PUSHREGTABLE(r11)
-    PUSHREGTABLE(r12)
-    PUSHREGTABLE(r13)
-    PUSHREGTABLE(r14)
-    PUSHREGTABLE(r15)
-    PUSHREGTABLE(rip)
+    PUSHREGTABLE(eax)
+    PUSHREGTABLE(ebx)
+    PUSHREGTABLE(ecx)
+    PUSHREGTABLE(edx)
+    PUSHREGTABLE(esi)
+    PUSHREGTABLE(edi)
+    PUSHREGTABLE(esp)
+    PUSHREGTABLE(ebp)
+    PUSHREGTABLE(eip)
 
     return 1;
 }
+
+int tmpi = 0;
 
 int l_debug_wait (lua_State * L)
 {
     struct _debug * d = l_check_debug(L, -1);
 
     lua_pop(L, 1);
+    
+    struct user_regs_struct regs;
+    ptrace(PTRACE_GETREGS, d->pid, NULL, &regs);
+    if (breakpoint_cont(d->pid, regs.eip)) {
+        ptrace(PTRACE_CONT, d->pid, NULL, NULL);
+        if (tmpi++ == 3)
+            exit(-1);
+    }
 
-    ptrace(PTRACE_CONT, d->pid, NULL, NULL);
     waitpid(d->pid, &(d->status), 0);
 
     if (WIFEXITED(d->status))
@@ -252,3 +271,21 @@ int l_debug_status (lua_State * L)
 
     return 1;   
 }
+
+
+int l_debug_breakpoint (lua_State * L)
+{
+    struct _debug * d = l_check_debug(L, -2);
+    
+    uint64_t address = (uint64_t) luaL_checknumber(L, -1);
+    
+    lua_pop(L, 2);
+    
+    if (breakpoint_add(d->pid, address))
+        lua_pushboolean(L, 1);
+    else
+        lua_pushboolean(L, 0);
+    
+    return 1;
+}
+    
