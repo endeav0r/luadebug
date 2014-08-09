@@ -18,6 +18,7 @@ static const struct luaL_Reg l_debug_m [] = {
     {"registers",  l_debug_registers},
     {"wait",       l_debug_wait},
     {"readmem",    l_debug_readmem},
+    {"step",       l_debug_step},
     {"termsig",    l_debug_termsig},
     {"stopsig",    l_debug_stopsig},
     {"status",     l_debug_status},
@@ -25,8 +26,7 @@ static const struct luaL_Reg l_debug_m [] = {
     {NULL, NULL}
 };
 
-LUALIB_API int luaopen_l_debug (lua_State * L)
-{
+LUALIB_API int luaopen_l_debug (lua_State * L) {
     luaL_newmetatable(L, "l.debug_t");
     lua_pushstring(L, "__index");
     lua_pushvalue(L, -2);
@@ -38,8 +38,7 @@ LUALIB_API int luaopen_l_debug (lua_State * L)
 }
 
 
-int l_debug_new (lua_State * L)
-{
+int l_debug_new (lua_State * L) {
     struct _debug * d = lua_newuserdata(L, sizeof(struct _debug));
     luaL_getmetatable(L, "l.debug_t");
     lua_setmetatable(L, -2);
@@ -49,16 +48,14 @@ int l_debug_new (lua_State * L)
 }
 
 
-struct _debug * l_check_debug (lua_State * L, int position)
-{
+struct _debug * l_check_debug (lua_State * L, int position) {
     void * userdata = luaL_checkudata(L, position, "l.debug_t");
     luaL_argcheck(L, userdata != NULL, position, "l.debug_t expected");
     return (struct _debug *) userdata;
 }
 
 
-int l_debug_execv (lua_State * L)
-{
+int l_debug_execv (lua_State * L) {
     // grab arguments for execv
     const char * path = luaL_checkstring(L, -2);
 
@@ -127,8 +124,7 @@ int l_debug_execv (lua_State * L)
 }
 
 
-int l_debug_pid (lua_State * L)
-{
+int l_debug_pid (lua_State * L) {
     struct _debug * d = l_check_debug(L, -1);
     lua_pop(L, 1);
     lua_pushinteger(L, d->pid);
@@ -136,8 +132,7 @@ int l_debug_pid (lua_State * L)
 }
 
 
-int l_debug_getpc (lua_State * L)
-{
+int l_debug_getpc (lua_State * L) {
     struct _debug * d = l_check_debug(L, -1);
     lua_pop(L, 1);
 
@@ -153,8 +148,7 @@ int l_debug_getpc (lua_State * L)
 }
 
 
-int l_debug_registers (lua_State * L)
-{
+int l_debug_registers (lua_State * L) {
     struct _debug * d = l_check_debug(L, -1);
     lua_pop(L, 1);
 
@@ -183,8 +177,7 @@ int l_debug_registers (lua_State * L)
 
 int tmpi = 0;
 
-int l_debug_wait (lua_State * L)
-{
+int l_debug_wait (lua_State * L) {
     struct _debug * d = l_check_debug(L, -1);
 
     lua_pop(L, 1);
@@ -212,8 +205,7 @@ int l_debug_wait (lua_State * L)
 }
 
 
-int l_debug_readmem (lua_State * L)
-{
+int l_debug_readmem (lua_State * L) {
     struct _debug * d = l_check_debug(L, -3);
 
     lua_Number address_number = luaL_checknumber(L, -2);
@@ -237,8 +229,23 @@ int l_debug_readmem (lua_State * L)
 }
 
 
-int l_debug_termsig (lua_State * L)
-{
+int l_debug_step (lua_State * L) {
+    struct _debug * d = l_check_debug(L, -1);
+    lua_pop(L, 1);
+
+    ptrace(PTRACE_SINGLESTEP, d->pid, NULL, NULL);
+    int status;
+    while (1) {
+        waitpid(d->pid, &status, 0);
+        if ((WIFSTOPPED(status)) && (WSTOPSIG(status) == SIGTRAP))
+            break;
+    }
+
+    return 0;
+}
+
+
+int l_debug_termsig (lua_State * L) {
     struct _debug * d = l_check_debug(L, -1);
 
     lua_pop(L, 1);
@@ -249,8 +256,7 @@ int l_debug_termsig (lua_State * L)
 }
 
 
-int l_debug_stopsig (lua_State * L)
-{
+int l_debug_stopsig (lua_State * L) {
     struct _debug * d = l_check_debug(L, -1);
 
     lua_pop(L, 1);
@@ -261,8 +267,7 @@ int l_debug_stopsig (lua_State * L)
 }
 
 
-int l_debug_status (lua_State * L)
-{
+int l_debug_status (lua_State * L) {
     struct _debug * d = l_check_debug(L, -1);
 
     lua_pop(L, 1);
@@ -273,8 +278,7 @@ int l_debug_status (lua_State * L)
 }
 
 
-int l_debug_breakpoint (lua_State * L)
-{
+int l_debug_breakpoint (lua_State * L) {
     struct _debug * d = l_check_debug(L, -2);
     
     uint64_t address = (uint64_t) luaL_checknumber(L, -1);
