@@ -26,13 +26,13 @@ static const struct luaL_Reg l_debug_m [] = {
     {NULL, NULL}
 };
 
-LUALIB_API int luaopen_l_debug (lua_State * L) {
+LUALIB_API int luaopen_ldebug (lua_State * L) {
     luaL_newmetatable(L, "l.debug_t");
     lua_pushstring(L, "__index");
     lua_pushvalue(L, -2);
     lua_settable(L, -3);
     luaL_register(L, NULL, l_debug_m);
-    luaL_register(L, "l_debug", l_debug_f);
+    luaL_register(L, "ldebug", l_debug_f);
 
     return 2;
 }

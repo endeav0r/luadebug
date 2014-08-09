@@ -1,4 +1,4 @@
-require ('l_debug')
+require ('ldebug')
 
 function map (f, t)
     local result = {}
@@ -24,7 +24,7 @@ function stepPrint (d)
     print(string.format(pcString .. '\t' .. bytesString))
 end
 
-local d = l_debug.execv('/bin/ls', {'/'})
+local d = ldebug.execv('/bin/ls', {'/'})
 
 for i=1,10 do
     stepPrint(d)
