@@ -13,7 +13,7 @@ struct _bp {
 };
 
 int breakpoint_add  (pid_t pid, uint64_t address);
-int breakpoint_cont (pid_t pid, uint64_t address);
+int breakpoint_step (pid_t pid, uint64_t address);
 int breakpoint_del  (pid_t pid, uint64_t address);
 
 #endif

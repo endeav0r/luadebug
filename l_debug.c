@@ -175,8 +175,6 @@ int l_debug_registers (lua_State * L) {
     return 1;
 }
 
-int tmpi = 0;
-
 int l_debug_wait (lua_State * L) {
     struct _debug * d = l_check_debug(L, -1);
 
@@ -184,11 +182,10 @@ int l_debug_wait (lua_State * L) {
     
     struct user_regs_struct regs;
     ptrace(PTRACE_GETREGS, d->pid, NULL, &regs);
-    if (breakpoint_cont(d->pid, regs.eip)) {
-        ptrace(PTRACE_CONT, d->pid, NULL, NULL);
-        if (tmpi++ == 3)
-            exit(-1);
-    }
+    
+    breakpoint_step(d->pid, regs.eip);
+    ptrace(PTRACE_CONT, d->pid, NULL, NULL);
+    
 
     waitpid(d->pid, &(d->status), 0);
 
@@ -233,12 +230,17 @@ int l_debug_step (lua_State * L) {
     struct _debug * d = l_check_debug(L, -1);
     lua_pop(L, 1);
 
-    ptrace(PTRACE_SINGLESTEP, d->pid, NULL, NULL);
-    int status;
-    while (1) {
-        waitpid(d->pid, &status, 0);
-        if ((WIFSTOPPED(status)) && (WSTOPSIG(status) == SIGTRAP))
-            break;
+    struct user_regs_struct regs;
+    ptrace(PTRACE_GETREGS, d->pid, NULL, &regs);
+    
+    if (breakpoint_step(d->pid, regs.eip)) {
+        ptrace(PTRACE_SINGLESTEP, d->pid, NULL, NULL);
+        int status;
+        while (1) {
+            waitpid(d->pid, &status, 0);
+            if ((WIFSTOPPED(status)) && (WSTOPSIG(status) == SIGTRAP))
+                break;
+        }
     }
 
     return 0;

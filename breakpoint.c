@@ -56,7 +56,7 @@ int breakpoint_add (pid_t pid, uint64_t address)
 }
 
 
-int breakpoint_cont (pid_t pid, uint64_t address)
+int breakpoint_step (pid_t pid, uint64_t address)
 {
     //printf("breakpoint_cont address=%x\n", address);
     unsigned char save_byte = 0;
@@ -97,7 +97,6 @@ int breakpoint_cont (pid_t pid, uint64_t address)
     }
     
     breakpoint_set_byte(pid, next->address, 0xcc);
-    ptrace(PTRACE_CONT, pid, NULL, NULL);
     
     return 0;
 }
