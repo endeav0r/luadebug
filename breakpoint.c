@@ -80,7 +80,11 @@ int breakpoint_step (pid_t pid, uint64_t address)
     struct user_regs_struct regs;
     ptrace(PTRACE_GETREGS, pid, NULL, &regs);
     //printf("eip is %x\n", regs.eip);
+#ifdef LUADEBUG64
+    regs.rip = (uint64_t) next->address;
+#else
     regs.eip = (uint32_t) next->address;
+#endif
     //printf("eip is %x\n", regs.eip);
     ptrace(PTRACE_SETREGS, pid, NULL, &regs);
     

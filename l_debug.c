@@ -27,14 +27,20 @@ static const struct luaL_Reg l_debug_m [] = {
 };
 
 LUALIB_API int luaopen_ldebug (lua_State * L) {
+
+    if (    (strcmp(LUA_VERSION_MAJOR, "5"))
+         || (strcmp(LUA_VERSION_MINOR, "3")))
+        luaL_error(L, "lua version not 5.3");
+
     luaL_newmetatable(L, "l.debug_t");
+    luaL_setfuncs(L, l_debug_m, 0);
     lua_pushstring(L, "__index");
     lua_pushvalue(L, -2);
     lua_settable(L, -3);
-    luaL_register(L, NULL, l_debug_m);
-    luaL_register(L, "ldebug", l_debug_f);
 
-    return 2;
+    luaL_newlib(L, l_debug_f);
+
+    return 1;
 }
 
 
@@ -64,7 +70,7 @@ int l_debug_execv (lua_State * L) {
         return 0;
     }
 
-    int table_len = lua_objlen(L, -1);
+    int table_len = lua_rawlen(L, -1);
     char ** args = (char **) malloc(sizeof(char *) * (table_len + 2));
 
     args[0] = strdup(path);
@@ -140,9 +146,15 @@ int l_debug_getpc (lua_State * L) {
     ptrace(PTRACE_GETREGS, d->pid, NULL, &regs);
 
     if ((WIFSTOPPED(d->status)) && (WSTOPSIG(d->status) == SIGTRAP))
+#ifdef LUADEBUG64
+        lua_pushnumber(L, regs.rip - 1);
+    else
+        lua_pushnumber(L, regs.rip);
+#else
         lua_pushnumber(L, regs.eip - 1);
     else
         lua_pushnumber(L, regs.eip);
+#endif
 
     return 1;
 }
@@ -159,9 +171,20 @@ int l_debug_registers (lua_State * L) {
 
 #define PUSHREGTABLE(XX) \
     lua_pushstring(L, #XX);\
-    lua_pushnumber(L, regs.XX);\
+    lua_pushinteger(L, (uint64_t) regs.XX);\
     lua_settable(L, -3);
 
+#ifdef LUADEBUG64
+    PUSHREGTABLE(rax)
+    PUSHREGTABLE(rbx)
+    PUSHREGTABLE(rcx)
+    PUSHREGTABLE(rdx)
+    PUSHREGTABLE(rsi)
+    PUSHREGTABLE(rdi)
+    PUSHREGTABLE(rsp)
+    PUSHREGTABLE(rbp)
+    PUSHREGTABLE(rip)
+#else
     PUSHREGTABLE(eax)
     PUSHREGTABLE(ebx)
     PUSHREGTABLE(ecx)
@@ -171,6 +194,7 @@ int l_debug_registers (lua_State * L) {
     PUSHREGTABLE(esp)
     PUSHREGTABLE(ebp)
     PUSHREGTABLE(eip)
+#endif
 
     return 1;
 }
@@ -183,7 +207,11 @@ int l_debug_wait (lua_State * L) {
     struct user_regs_struct regs;
     ptrace(PTRACE_GETREGS, d->pid, NULL, &regs);
     
+#ifdef LUADEBUG64
+    breakpoint_step(d->pid, regs.rip);
+#else
     breakpoint_step(d->pid, regs.eip);
+#endif
     ptrace(PTRACE_CONT, d->pid, NULL, NULL);
     
 
@@ -233,7 +261,11 @@ int l_debug_step (lua_State * L) {
     struct user_regs_struct regs;
     ptrace(PTRACE_GETREGS, d->pid, NULL, &regs);
     
+#ifdef LUADEBUG64
+    if (breakpoint_step(d->pid, regs.rip)) {
+#else
     if (breakpoint_step(d->pid, regs.eip)) {
+#endif
         ptrace(PTRACE_SINGLESTEP, d->pid, NULL, NULL);
         int status;
         while (1) {
