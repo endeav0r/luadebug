@@ -12,4 +12,4 @@ l_debug : $(OBJS)
 
 clean :
 	rm -f *.o
-	rm -f l_debug.so
+	rm -f ldebug.so
