@@ -1,6 +1,6 @@
 OBJS = breakpoint.o l_debug.o
 
-CFLAGS = -O2 -fpic
+CFLAGS = -O2 -fpic -DLUADEBUG64
 
 all : l_debug
 

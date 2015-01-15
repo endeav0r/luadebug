@@ -147,13 +147,13 @@ int l_debug_getpc (lua_State * L) {
 
     if ((WIFSTOPPED(d->status)) && (WSTOPSIG(d->status) == SIGTRAP))
 #ifdef LUADEBUG64
-        lua_pushnumber(L, regs.rip - 1);
+        lua_pushinteger(L, regs.rip - 1);
     else
-        lua_pushnumber(L, regs.rip);
+        lua_pushinteger(L, regs.rip);
 #else
-        lua_pushnumber(L, regs.eip - 1);
+        lua_pushinteger(L, regs.eip - 1);
     else
-        lua_pushnumber(L, regs.eip);
+        lua_pushinteger(L, regs.eip);
 #endif
 
     return 1;
@@ -221,8 +221,11 @@ int l_debug_wait (lua_State * L) {
         lua_pushstring(L, "WIFEXITED");
     else if (WIFSIGNALED(d->status))
         lua_pushstring(L, "WIFSIGNALED");
-    else if (WIFSTOPPED(d->status))
+    else if (WIFSTOPPED(d->status)) {
         lua_pushstring(L, "WIFSTOPPED");
+        lua_pushinteger(L, WSTOPSIG(d->status));
+        return 2;
+    }
     else
         lua_pushstring(L, "W_OTHER");
 
