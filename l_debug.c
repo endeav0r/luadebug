@@ -323,9 +323,9 @@ int l_debug_breakpoint (lua_State * L) {
     lua_pop(L, 2);
     
     if (breakpoint_add(d->pid, address))
-        lua_pushboolean(L, 1);
-    else
         lua_pushboolean(L, 0);
+    else
+        lua_pushboolean(L, 1);
     
     return 1;
 }
