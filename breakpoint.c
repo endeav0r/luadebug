@@ -19,11 +19,11 @@ unsigned char breakpoint_get_byte (pid_t pid, uint64_t address)
 
 void breakpoint_set_byte (pid_t pid, uint64_t address, uint8_t byte)
 {
-    long bytes = ptrace(PTRACE_PEEKTEXT, pid, (unsigned int) address, NULL);
+    long bytes = ptrace(PTRACE_PEEKTEXT, pid, address, NULL);
     //printf("bytes=%x, address=%x\n", bytes, address);
     bytes = (bytes & (~0xff)) | byte;
     //printf("bytes are %x\n", bytes);
-    ptrace(PTRACE_POKETEXT, pid, (unsigned int) address, bytes);
+    ptrace(PTRACE_POKETEXT, pid, address, bytes);
 }
 
 
