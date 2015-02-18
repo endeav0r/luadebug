@@ -13,7 +13,7 @@ struct _bp * bps = 0;
 
 unsigned char breakpoint_get_byte (pid_t pid, uint64_t address)
 {
-    return ptrace(PTRACE_PEEKTEXT, pid, (unsigned int) address, NULL);
+    return ptrace(PTRACE_PEEKTEXT, pid, address, NULL);
 }
 
 
@@ -58,7 +58,7 @@ int breakpoint_add (pid_t pid, uint64_t address)
 
 int breakpoint_step (pid_t pid, uint64_t address)
 {
-    //printf("breakpoint_cont address=%x\n", address);
+    printf("breakpoint_cont address=%llx\n", address);
     unsigned char save_byte = 0;
     
     struct _bp * next = bps;
@@ -73,19 +73,20 @@ int breakpoint_step (pid_t pid, uint64_t address)
     if (next == NULL)
         return -1;
         
-    //printf("setting byte %x at %x\n", (int) save_byte, (int) next->address);
+    printf("setting byte %x at %llx\n", save_byte, next->address);
     
     breakpoint_set_byte(pid, next->address, save_byte);
     
     struct user_regs_struct regs;
     ptrace(PTRACE_GETREGS, pid, NULL, &regs);
-    //printf("eip is %x\n", regs.eip);
+    printf("rip is %llx\n", regs.rip);
 #ifdef LUADEBUG64
     regs.rip = (uint64_t) next->address;
 #else
     regs.eip = (uint32_t) next->address;
 #endif
-    //printf("eip is %x\n", regs.eip);
+    printf("rip is %llx\n", regs.rip);
+
     ptrace(PTRACE_SETREGS, pid, NULL, &regs);
     
     
@@ -94,9 +95,9 @@ int breakpoint_step (pid_t pid, uint64_t address)
     int status;
     while (1) {
         waitpid(pid, &status, 0);
-        //printf("WIFSTOPPED(status) = %d\n", WIFSTOPPED(status));
-        //printf("WSTOPSIG(status) = %d\n", WSTOPSIG(status));
-        if ((WIFSTOPPED(status)) && (WSTOPSIG(status) == SIGTRAP))
+        printf("WIFSTOPPED(status) = %d\n", WIFSTOPPED(status));
+        printf("WSTOPSIG(status) = %d %d\n", WSTOPSIG(status), SIGTRAP);
+        if (WIFSTOPPED(status))
             break;
     }
     

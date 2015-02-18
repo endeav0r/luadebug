@@ -201,8 +201,6 @@ int l_debug_registers (lua_State * L) {
 
 int l_debug_wait (lua_State * L) {
     struct _debug * d = l_check_debug(L, -1);
-
-    lua_pop(L, 1);
     
     struct user_regs_struct regs;
     ptrace(PTRACE_GETREGS, d->pid, NULL, &regs);
@@ -212,6 +210,7 @@ int l_debug_wait (lua_State * L) {
 #else
     breakpoint_step(d->pid, regs.eip);
 #endif
+    
     ptrace(PTRACE_CONT, d->pid, NULL, NULL);
     
 
