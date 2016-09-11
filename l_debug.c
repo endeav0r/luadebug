@@ -1,6 +1,7 @@
 #include "l_debug.h"
 #include "breakpoint.h"
 
+#include <fcntl.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <stdlib.h>
@@ -19,6 +20,8 @@ static const struct luaL_Reg l_debug_m [] = {
     {"wait",       l_debug_wait},
     {"readmem",    l_debug_readmem},
     {"step",       l_debug_step},
+    {"read",       l_debug_read},
+    {"write",      l_debug_write},
     {"termsig",    l_debug_termsig},
     {"stopsig",    l_debug_stopsig},
     {"status",     l_debug_status},
@@ -240,8 +243,6 @@ int l_debug_readmem (lua_State * L) {
 
     unsigned int bytes = luaL_checkinteger(L, -1);
 
-    lua_pop(L, 3);
-
     lua_newtable(L);
 
     unsigned int i;
@@ -258,7 +259,6 @@ int l_debug_readmem (lua_State * L) {
 
 int l_debug_step (lua_State * L) {
     struct _debug * d = l_check_debug(L, -1);
-    lua_pop(L, 1);
 
     struct user_regs_struct regs;
     ptrace(PTRACE_GETREGS, d->pid, NULL, &regs);
@@ -281,11 +281,52 @@ int l_debug_step (lua_State * L) {
 }
 
 
+int l_debug_write (lua_State * L) {
+    struct _debug * d = l_check_debug(L, 1);
+
+    int fd = luaL_checkinteger(L, 2);
+    size_t size;
+    const char * data = luaL_checklstring(L, 3, &size);
+
+    // oh we are just dirty wrotten linux-ness
+    char tmp[256];
+    snprintf(tmp, 256, "/proc/%d/fd/%d", d->pid, fd);
+
+    int ffd = open(tmp, 0);
+    int result = write(ffd, data, size);
+    close(ffd);
+
+    lua_pushinteger(L, result);
+
+    return 1;
+}
+
+
+int l_debug_read (lua_State * L) {
+    struct _debug * d = l_check_debug(L, 1);
+
+    int fd = luaL_checkinteger(L, 2);
+    size_t size = luaL_checkinteger(L, 3);
+
+    char tmp[256];
+    snprintf(tmp, 256, "/proc/%d/fd/%d", d->pid, fd);
+
+    void * buf = malloc(size);
+
+    int ffd = open(tmp, 0);
+    int result = read(ffd, buf, size);
+    close(ffd);
+
+    lua_pushlstring(L, buf, size);
+
+    free(buf);
+
+    return 1;
+}
+
+
 int l_debug_termsig (lua_State * L) {
     struct _debug * d = l_check_debug(L, -1);
-
-    lua_pop(L, 1);
-
     lua_pushinteger(L, WTERMSIG(d->status));
 
     return 1;
@@ -295,8 +336,6 @@ int l_debug_termsig (lua_State * L) {
 int l_debug_stopsig (lua_State * L) {
     struct _debug * d = l_check_debug(L, -1);
 
-    lua_pop(L, 1);
-
     lua_pushinteger(L, WSTOPSIG(d->status));
 
     return 1;
@@ -305,8 +344,6 @@ int l_debug_stopsig (lua_State * L) {
 
 int l_debug_status (lua_State * L) {
     struct _debug * d = l_check_debug(L, -1);
-
-    lua_pop(L, 1);
 
     lua_pushinteger(L, d->status);
 
@@ -318,8 +355,6 @@ int l_debug_breakpoint (lua_State * L) {
     struct _debug * d = l_check_debug(L, -2);
     
     uint64_t address = (uint64_t) luaL_checknumber(L, -1);
-    
-    lua_pop(L, 2);
     
     if (breakpoint_add(d->pid, address))
         lua_pushboolean(L, 0);

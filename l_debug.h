@@ -26,6 +26,9 @@ int l_debug_wait      (lua_State * L);
 int l_debug_readmem   (lua_State * L);
 int l_debug_step      (lua_State * L);
 
+int l_debug_write     (lua_State * L);
+int l_debug_read      (lua_State * L);
+
 int l_debug_termsig   (lua_State * L);
 int l_debug_stopsig   (lua_State * L);
 int l_debug_status    (lua_State * L);
